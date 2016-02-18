@@ -3,9 +3,10 @@
 #include <iostream>
 #include <cstring>
 #include <algorithm>
+#include <climits> 
 
 using namespace std;
-int* bitonic_sort(int* to_sort, int n){
+int* bitonic_sort(int* to_sort, int size){
     cuInit(0);
     CUdevice cuDevice;
     CUresult res = cuDeviceGet(&cuDevice, 0);
@@ -39,29 +40,36 @@ int* bitonic_sort(int* to_sort, int n){
     res = cuModuleGetFunction(&bitonic_triangle_merge, cuModule, "bitonic_triangle_merge");
     if (res != CUDA_SUCCESS) printf("some error %d\n", __LINE__);
 
-    int numberOfBlocks = (n+1023)/1024;
+    int numberOfBlocks = (size+1023)/1024;
+
+    
+
+    int* result = (int*) malloc(sizeof(int) * size);
+    cuMemHostRegister((void*) result, size*sizeof(int), 0);
+    cuMemHostRegister((void*) to_sort, size*sizeof(int), 0);
 
     CUdeviceptr deviceToSort;
-    cuMemAlloc(&deviceToSort, n*sizeof(int));
-
-    cuMemHostRegister((void*) to_sort, n*sizeof(int), 0);
-
-    cuMemcpyHtoD(deviceToSort, to_sort, n * sizeof(int));
+    cuMemAlloc(&deviceToSort, size*sizeof(int));
+    cuMemcpyHtoD(deviceToSort, to_sort, size * sizeof(int));
 
     int local_n = 1024;
-    void* args[2] =  { &deviceToSort, &local_n};
+    void* args[3] =  { &deviceToSort, &local_n, &size};
     cuLaunchKernel(bitonic_sort, numberOfBlocks, 1, 1, 1024, 1, 1, 0, 0, args, 0);
     cuCtxSynchronize();
 
+
+    int n;
+    //fit n to power of 2
+    for (n = 1; n<size; n<<=1);
     for (int d_traingle = local_n*2; d_traingle <= n; d_traingle*=2) {
-        void* args1[2] = { &deviceToSort, &d_traingle};
+        void* args1[3] = { &deviceToSort, &d_traingle, &size};
 
         res = cuLaunchKernel(bitonic_triangle_merge, numberOfBlocks, 1, 1, 1024, 1, 1, 0, 0, args1, 0);
         if (res != CUDA_SUCCESS) printf("some error %d\n", __LINE__);
         cuCtxSynchronize();
 
         for (int d = d_traingle/2; d >= 2; d /= 2) {
-            void* args2[2] = { &deviceToSort, &d};
+            void* args2[3] = { &deviceToSort, &d, &size};
 
             res = cuLaunchKernel(bitonic_merge, numberOfBlocks, 1, 1, 1024, 1, 1, 0, 0, args2, 0);
             if (res != CUDA_SUCCESS) printf("some error %d\n", __LINE__);
@@ -72,12 +80,13 @@ int* bitonic_sort(int* to_sort, int n){
     cuCtxSynchronize();
     
         
-    int* result = (int*) malloc(sizeof(int) * n);
-    cuMemHostRegister((void*) result, n*sizeof(int), 0);
+    
 
-    cuMemcpyDtoH((void*)result, deviceToSort, n * sizeof(int));
+    cuMemcpyDtoH((void*)result, deviceToSort, size * sizeof(int));
 
     cuMemFree(deviceToSort);
+    cuMemHostUnregister(result);
+    cuMemHostUnregister(to_sort);
     cuCtxDestroy(cuContext);
     return result;
 }
