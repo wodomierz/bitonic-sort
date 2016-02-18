@@ -9,19 +9,15 @@ void min_max(int* for_min, int* for_max) {
 	int min = *for_min;
 	int max = *for_max;
 	if (max < min) {
-		int tmp = min;
-		min = max;
-		max = tmp;
+		atomicExch(for_max, min);
+		atomicExch(for_min, max);
 	}
-	*for_min = min;
-	*for_max = max;
-	};
+};
 
 
 __global__
 void bitonic_sort(int* in, int n) {
- 	
-	int thid = blockIdx.x * blockDim.x + threadIdx.x;
+	int thid = blockIdx.x * blockDim.x + threadIdx.x;	
 		
 	int d_traingle;
 	int local_thid;
@@ -62,7 +58,8 @@ void bitonic_merge(int* in, int d) {
 
 __global__
 void bitonic_triangle_merge(int* in, int d_traingle) {
- 	int thid = blockIdx.x * blockDim.x + threadIdx.x;	
+ 	int thid = blockIdx.x * blockDim.x + threadIdx.x;
+ 	// printf("%d %d traingle thid \n", d_traingle, thid);	
 	int local_thid = thid % d_traingle;		
 	int opposite = thid - local_thid + d_traingle - 1 - local_thid;
 	if (local_thid < d_traingle/2) {
