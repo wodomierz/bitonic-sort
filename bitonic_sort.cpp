@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <climits> 
 
+#include "bitonic_sort.h"
+
+static int THREADS_IN_BLOCK = 1024;
+
 using namespace std;
 int* bitonic_sort(int* to_sort, int size){
     cuInit(0);
@@ -40,7 +44,7 @@ int* bitonic_sort(int* to_sort, int size){
     res = cuModuleGetFunction(&bitonic_triangle_merge, cuModule, "bitonic_triangle_merge");
     if (res != CUDA_SUCCESS) printf("some error %d\n", __LINE__);
 
-    int numberOfBlocks = (size+1023)/1024;
+    int numberOfBlocks = (size+THREADS_IN_BLOCK-1)/THREADS_IN_BLOCK;
 
     
 
@@ -52,36 +56,32 @@ int* bitonic_sort(int* to_sort, int size){
     cuMemAlloc(&deviceToSort, size*sizeof(int));
     cuMemcpyHtoD(deviceToSort, to_sort, size * sizeof(int));
 
-    int local_n = 1024;
-    void* args[3] =  { &deviceToSort, &local_n, &size};
-    cuLaunchKernel(bitonic_sort, numberOfBlocks, 1, 1, 1024, 1, 1, 0, 0, args, 0);
+    void* args[2] =  { &deviceToSort, &size};
+    cuLaunchKernel(bitonic_sort, numberOfBlocks, 1, 1, THREADS_IN_BLOCK, 1, 1, 0, 0, args, 0);
     cuCtxSynchronize();
 
 
     int n;
     //fit n to power of 2
     for (n = 1; n<size; n<<=1);
-    for (int d_traingle = local_n*2; d_traingle <= n; d_traingle*=2) {
+
+    for (int d_traingle = THREADS_IN_BLOCK*2; d_traingle <= n; d_traingle*=2) {
         void* args1[3] = { &deviceToSort, &d_traingle, &size};
 
-        res = cuLaunchKernel(bitonic_triangle_merge, numberOfBlocks, 1, 1, 1024, 1, 1, 0, 0, args1, 0);
+        res = cuLaunchKernel(bitonic_triangle_merge, numberOfBlocks, 1, 1, THREADS_IN_BLOCK, 1, 1, 0, 0, args1, 0);
         if (res != CUDA_SUCCESS) printf("some error %d\n", __LINE__);
         cuCtxSynchronize();
 
         for (int d = d_traingle/2; d >= 2; d /= 2) {
             void* args2[3] = { &deviceToSort, &d, &size};
 
-            res = cuLaunchKernel(bitonic_merge, numberOfBlocks, 1, 1, 1024, 1, 1, 0, 0, args2, 0);
+            res = cuLaunchKernel(bitonic_merge, numberOfBlocks, 1, 1, THREADS_IN_BLOCK, 1, 1, 0, 0, args2, 0);
             if (res != CUDA_SUCCESS) printf("some error %d\n", __LINE__);
             cuCtxSynchronize();
         }
     }
-
     cuCtxSynchronize();
     
-        
-    
-
     cuMemcpyDtoH((void*)result, deviceToSort, size * sizeof(int));
 
     cuMemFree(deviceToSort);

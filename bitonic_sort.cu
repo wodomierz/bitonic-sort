@@ -5,6 +5,9 @@
 extern "C" {
 
 __device__
+static int THREADS_IN_BLOCK = 1024;
+
+__device__
 void min_max(int* tab, int for_min, int for_max, int size) {
 	if (for_min >= size || for_max >= size) {
 		return;
@@ -19,7 +22,7 @@ void min_max(int* tab, int for_min, int for_max, int size) {
 
 
 __global__
-void bitonic_sort(int* in, int n, int size) {
+void bitonic_sort(int* to_sort, int size) {
 	int thid = blockIdx.x * blockDim.x + threadIdx.x;	
 	if (thid >= size) {
 		return;
@@ -29,11 +32,11 @@ void bitonic_sort(int* in, int n, int size) {
 	int opposite;
 
 
-	for (d_traingle = 2; d_traingle <= n; d_traingle*=2) {
+	for (d_traingle = 2; d_traingle <= THREADS_IN_BLOCK; d_traingle*=2) {
 		local_thid = thid % d_traingle;		
 		opposite = thid - local_thid + d_traingle - 1 - local_thid;
 		if (local_thid < d_traingle/2) {
-			min_max(in, thid, opposite, size);
+			min_max(to_sort, thid, opposite, size);
 		}
 
 		__syncthreads();
@@ -42,7 +45,7 @@ void bitonic_sort(int* in, int n, int size) {
 			local_thid = thid % d;	
 			if (local_thid < d/2) {
 				opposite = thid + d/2;
-				min_max(in, thid, opposite, size);
+				min_max(to_sort, thid, opposite, size);
 			}
 			__syncthreads();
 		}
@@ -52,7 +55,7 @@ void bitonic_sort(int* in, int n, int size) {
 }
 
 __global__
-void bitonic_merge(int* in, int d, int size) {
+void bitonic_merge(int* to_sort, int d, int size) {
 	int thid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (thid >= size) {
 		return;
@@ -61,12 +64,12 @@ void bitonic_merge(int* in, int d, int size) {
  	int local_thid = thid % d;	
  	int opposite = thid + d/2;
 	if (local_thid < d/2) {
-		min_max(in, thid,  opposite, size);
+		min_max(to_sort, thid,  opposite, size);
 	}
 }
 
 __global__
-void bitonic_triangle_merge(int* in, int d_traingle, int size) {
+void bitonic_triangle_merge(int* to_sort, int d_traingle, int size) {
  	int thid = blockIdx.x * blockDim.x + threadIdx.x;
  	if (thid >= size) {
 		return;
@@ -74,7 +77,7 @@ void bitonic_triangle_merge(int* in, int d_traingle, int size) {
 	int local_thid = thid % d_traingle;		
 	int opposite = thid - local_thid + d_traingle - 1 - local_thid;
 	if (local_thid < d_traingle/2) {
-		min_max(in, thid,  opposite, size);
+		min_max(to_sort, thid,  opposite, size);
 	}
 }
 
