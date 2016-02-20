@@ -84,7 +84,7 @@ int main(){
   cout << "===================" <<endl; 
   cout << endl;
 
-  for (int i = 1; i < 1024*64; i *= 2) {
+  for (int i = 1; i <= 1024*64; i *= 2) {
     comparesorts(i*1024);
   }
 
@@ -97,6 +97,16 @@ int main(){
   for (int i = 1; i < 1024*64; i *= 2) {
     comparesorts(i*1025);
   }
+
+  cout << endl;
+  cout << "===================" <<endl; 
+  cout << "big numbers:" << endl;
+  cout << "===================" <<endl; 
+  cout << endl;
+
+  for (int i = 1024*64; i <= 1024*512; i *= 2) {
+    comparesorts(i*1024);
+  }
   
   test0();
   test1();
@@ -107,7 +117,7 @@ int main(){
 }
 
 void test0() {
-  int n = 1024*1024;
+  int n = 1024;
   int *c = (int*) malloc(n*sizeof(int));
   for (int j=0; j<n; ++j) {
       c[j] = n-j;
@@ -115,11 +125,15 @@ void test0() {
   int* d = bitonic_sort(c, n);
   for (int j=0; j<(n-1); ++j) {
     if (d[j] > d[j + 1]) {
+      // print(d, n);
       printf("test0 %d %d\n", d[j], d[j+1]);
+      
     } 
     assert(d[j] <= d[j + 1]);
     if (d[j] +1 != d[j + 1]) {
+      // print(d, n);
       printf("test0 %d %d\n", d[j], d[j+1]);
+
     }
     assert(d[j] +1 == d[j + 1]);
   }
@@ -129,7 +143,7 @@ void test0() {
 }
 
 void test1() {
-  int n = 1024*1024;
+  int n = 1024*1024*512;
   int *c = (int*) malloc(n*sizeof(int));
   for (int j=0; j<n; ++j){
       c[j] = rand();

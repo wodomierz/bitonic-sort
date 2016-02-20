@@ -23,10 +23,15 @@ void min_max(int* tab, int for_min, int for_max, int size) {
 
 __global__
 void bitonic_sort(int* to_sort, int size) {
-	int thid = blockIdx.x * blockDim.x + threadIdx.x;	
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	int thid = x + y*gridDim.x;
+
 	if (thid >= size) {
 		return;
 	}
+
 	int d_traingle;
 	int local_thid;
 	int opposite;
@@ -56,7 +61,11 @@ void bitonic_sort(int* to_sort, int size) {
 
 __global__
 void bitonic_merge(int* to_sort, int d, int size) {
-	int thid = blockIdx.x * blockDim.x + threadIdx.x;
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int thid = x + y*gridDim.x*blockDim.x;
+
+
 	if (thid >= size) {
 		return;
 	}
@@ -70,10 +79,14 @@ void bitonic_merge(int* to_sort, int d, int size) {
 
 __global__
 void bitonic_triangle_merge(int* to_sort, int d_traingle, int size) {
- 	int thid = blockIdx.x * blockDim.x + threadIdx.x;
+ 	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int thid = x + y*gridDim.x*blockDim.x;
+
  	if (thid >= size) {
 		return;
 	}
+
 	int local_thid = thid % d_traingle;		
 	int opposite = thid - local_thid + d_traingle - 1 - local_thid;
 	if (local_thid < d_traingle/2) {
